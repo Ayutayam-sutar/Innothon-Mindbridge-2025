@@ -1,25 +1,59 @@
 import { useNavigate } from 'react-router-dom';
 import { Brain, Heart, MessageCircle, BookOpen, Users, Shield, Star, ArrowRight, CheckCircle } from 'lucide-react';
 import { useState } from 'react';
+import axios from 'axios';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
+  const [isLoginView, setIsLoginView] = useState(false); // <-- ADD THIS STATE
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     college: '',
+    password: '',
     anonymous: false
   });
 
-  const handleSubmit = (e) => {
+ // src/components/LandingPage.jsx
+
+// REPLACE your old handleSubmit function with this new one
+// LandingPage.jsx
+
+// REPLACE the handleSubmit function with this new version
+const handleSubmit = async (e) => {
   e.preventDefault();
-  
-  // In a real app, you would verify credentials here
-  localStorage.setItem('isAuthenticated', 'true'); // Set auth flag
-  localStorage.setItem('user', JSON.stringify(formData)); // Store user data
-  
-  navigate('/app/dashboard', { replace: true });
+
+  if (isLoginView) {
+    // --- LOGIN LOGIC ---
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/login', {
+        email: formData.email,
+        password: formData.password,
+      });
+      localStorage.setItem('token', res.data.token);
+      alert('Login successful!');
+      navigate('/app/dashboard', { replace: true });
+    } catch (err) {
+      console.error('Login failed:', err.response.data);
+      alert('Error: ' + err.response.data.msg);
+    }
+  } else {
+    // --- REGISTER LOGIC (This is your existing code) ---
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/register', {
+        username: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      localStorage.setItem('token', res.data.token);
+      alert('Registration successful!');
+      navigate('/app/dashboard', { replace: true });
+    } catch (err) {
+      console.error('Registration failed:', err.response.data);
+      alert('Error: ' + err.response.data.msg);
+    }
+  }
 };
 
   const features = [
@@ -77,9 +111,9 @@ const LandingPage = () => {
       rating: 5
     },
     {
-      name: 'Priya Sahoo',
+      name: 'Sushree Sahoo',
       college: 'Bangalore University',
-      text: 'The daily check-ins and resources helped me develop better coping strategies.',
+      text: 'Mentored By Er.Ayutayam Sutar The daily check-ins and resources helped me develop better coping strategies.',
       rating: 5
     }
   ];
@@ -255,6 +289,16 @@ const LandingPage = () => {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                     required
                   />
+                  {/* ADD THIS PASSWORD INPUT BLOCK */}
+<input
+  type="password"
+  placeholder="Password (min 6 characters)"
+  value={formData.password}
+  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+  required
+  minLength="6"
+/>
                   <input
                     type="text"
                     placeholder="College/University"
@@ -281,6 +325,19 @@ const LandingPage = () => {
                 </button>
               </div>
             </form>
+            
+            {/* ADD THIS SECTION TO SWITCH BETWEEN MODES */}
+  <div className="text-center mt-4">
+    <button
+      onClick={() => setIsLoginView(!isLoginView)}
+      className="text-sm text-indigo-600 hover:underline"
+    >
+      {isLoginView
+        ? "Don't have an account? Sign Up"
+        : 'Already have an account? Log In'}
+    </button>
+  </div>
+
           </div>
         </div>
       )}
