@@ -388,7 +388,7 @@ const ConsultationPage = ({ user }) => {
           <Calendar className="w-8 h-8 text-indigo-600" />
           <span>Book Doctor Consultation</span>
         </h1>
-        <p className="text-gray-600">Connect with qualified mental health professionals</p>
+        <p className="  text-lg text-gray-600">Connect with qualified mental health professionals</p>
       </div>
 
       {/* My Appointments Section */}

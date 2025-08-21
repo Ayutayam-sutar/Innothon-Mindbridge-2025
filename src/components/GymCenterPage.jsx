@@ -266,7 +266,7 @@ const GymCenterPage = ({ user }) => {
           <Dumbbell className="w-8 h-8 text-orange-600" />
           <span>Fitness & Wellness Centers</span>
         </h1>
-        <p className="text-gray-600">Find the perfect fitness center to support your physical and mental wellbeing</p>
+        <p className=" text-lg text-gray-600">Find the perfect fitness center to support your physical and mental wellbeing</p>
       </div>
 
       {/* Benefits Banner */}

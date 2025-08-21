@@ -27,12 +27,13 @@ function App() {
 
   const isActive = (path) => location.pathname === path;
 
-  const NavItem = ({ item, isActive }) => {
+  const NavItem = ({ item, isActive, onClick }) => {
     const Icon = item.icon;
     return (
       <Link
         key={item.id}
         to={item.path}
+        onClick={onClick}
         className={`flex items-center space-x-2 px-2 py-2 rounded-lg transition-all duration-200 ${
           isActive ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
         }`}
@@ -52,13 +53,20 @@ function App() {
               <div className="w-10 h-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
                 <Brain className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="animate-tracking-in-expand text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 MindBridge
               </span>
             </Link>
 
-            <nav className="hidden md:flex">
-              {navigation.map((item) => (
+            {/* Desktop Navigation - Updated for better laptop responsiveness */}
+            <nav className="hidden lg:flex space-x-1">
+              {navigation.slice(0, 6).map((item) => (
+                <NavItem key={item.id} item={item} isActive={isActive(item.path)} />
+              ))}
+            </nav>
+            
+            <nav className="hidden md:flex lg:hidden space-x-1">
+              {navigation.slice(0, 3).map((item) => (
                 <NavItem key={item.id} item={item} isActive={isActive(item.path)} />
               ))}
             </nav>
@@ -77,6 +85,33 @@ function App() {
                 </div>
               </button>
 
+              {/* More menu for medium screens */}
+              <div className="hidden md:flex lg:hidden relative">
+                <button
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="p-2 rounded-lg text-gray-600 hover:text-indigo-600 hover:bg-indigo-50"
+                  aria-label="More options"
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+                
+                {isMenuOpen && (
+                  <div className="absolute right-0 top-12 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                    <div className="px-2 py-2 space-y-1">
+                      {navigation.slice(3).map((item) => (
+                        <NavItem 
+                          key={item.id} 
+                          item={item} 
+                          isActive={isActive(item.path)}
+                          onClick={() => setIsMenuOpen(false)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile menu button */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="md:hidden p-2 rounded-lg text-gray-600 hover:text-indigo-600 hover:bg-indigo-50"
@@ -86,8 +121,16 @@ function App() {
               </button>
             </div>
           </div>
+
+          {/* Second row for additional navigation items on larger laptops */}
+          <div className="hidden lg:flex justify-center space-x-1 py-2">
+            {navigation.slice(6).map((item) => (
+              <NavItem key={item.id} item={item} isActive={isActive(item.path)} />
+            ))}
+          </div>
         </div>
 
+        {/* Mobile menu */}
         {isMenuOpen && (
           <div className="md:hidden bg-white border-t border-indigo-100">
             <div className="px-4 py-2 space-y-1">

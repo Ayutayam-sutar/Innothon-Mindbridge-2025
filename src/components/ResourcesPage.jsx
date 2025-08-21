@@ -278,7 +278,7 @@ const ResourcesPage = () => {
           <Brain className="w-8 h-8 text-indigo-600" />
           <span>Mental Health Resources</span>
         </h1>
-        <p className="text-gray-600">Curated resources to support your mental health journey</p>
+        <p className=" text-lg text-gray-600">Curated resources to support your mental health journey</p>
       </div>
 
       {/* Search and Filters */}

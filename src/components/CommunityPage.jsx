@@ -152,7 +152,7 @@ const CommunityPage = ({ user }) => {
             <Users className="w-8 h-8 text-indigo-600" />
             <span>Community Support</span>
           </h1>
-          <p className="text-gray-600">Share your journey and support others in theirs</p>
+          <p className=" text-lg text-gray-600">Share your journey and support others in theirs</p>
         </div>
         
         <button

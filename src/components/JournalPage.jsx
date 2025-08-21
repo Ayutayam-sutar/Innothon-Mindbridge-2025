@@ -190,7 +190,7 @@ const JournalPage = () => {
               <BookOpen className="w-8 h-8 text-indigo-600" />
               <span>My Journal</span>
             </h1>
-            <p className="text-gray-600">Your private space for thoughts and reflections</p>
+            <p className="text-gray-600  text-lg">Your private space for thoughts and reflections</p>
           </div>
           
           <button

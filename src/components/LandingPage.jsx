@@ -90,15 +90,15 @@ const LandingPage = () => {
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
           <div className="text-center">
-            <div className="flex justify-center mb-8">
+            <div className=" animate-roll-in-left  flex justify-center mb-8 ">
               <div className="w-20 h-20 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
                 <Brain className="w-12 h-12 text-white" />
               </div>
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+            <h1 className=" animate-tracking-in-expand text-5xl md:text-6xl font-bold text-gray-900 mb-6">
               Your Mental Health
-              <span className="block bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="  animate-tracking-in-expand block bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 Matters
               </span>
             </h1>
@@ -144,7 +144,7 @@ const LandingPage = () => {
               return (
                 <div
                   key={index}
-                  className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all duration-300 border border-indigo-100"
+                  className=" animate-bounce-in-top bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all duration-300 border border-indigo-100"
                 >
                   <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center mb-6">
                     <Icon className="w-6 h-6 text-white" />

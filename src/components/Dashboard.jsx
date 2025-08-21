@@ -147,13 +147,13 @@ const Dashboard = ({ user }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Welcome back, {user?.anonymous ? 'friend' : user?.name || 'there'}! 👋
         </h1>
-        <p className="text-gray-600">How are you feeling today? Let's check in with yourself.</p>
+        <p className="text-gray-600 text-lg">How are you feeling today? Let's check in with yourself.</p>
       </div>
 
       {/* Quick Stats */}
@@ -161,7 +161,7 @@ const Dashboard = ({ user }) => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-indigo-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Check-in Streak</p>
+              <p className="text-base text-gray-600 mb-1">Check-in Streak</p>
               <p className="text-2xl font-bold text-indigo-600">{streakCount} days</p>
             </div>
             <Calendar className="w-8 h-8 text-indigo-500" />
@@ -171,7 +171,7 @@ const Dashboard = ({ user }) => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-green-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Average Mood</p>
+              <p className="text-base text-gray-600 mb-1">Average Mood</p>
               <p className="text-2xl font-bold text-green-600">{averageMood.toFixed(1)}/10</p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-500" />
@@ -181,7 +181,7 @@ const Dashboard = ({ user }) => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-purple-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Journal Entries</p>
+              <p className="text-base text-gray-600 mb-1">Journal Entries</p>
               <p className="text-2xl font-bold text-purple-600">{journalEntries}</p>
             </div>
             <BookOpen className="w-8 h-8 text-purple-500" />
@@ -191,7 +191,7 @@ const Dashboard = ({ user }) => {
         <div className="bg-white rounded-xl p-6 shadow-sm border border-blue-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Community Posts</p>
+              <p className="text-base text-gray-600 mb-1">Community Posts</p>
               <p className="text-2xl font-bold text-blue-600">{communityPosts}</p>
             </div>
             <Users className="w-8 h-8 text-blue-500" />

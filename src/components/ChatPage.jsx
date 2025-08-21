@@ -98,7 +98,7 @@ const ChatPage = ({ user }) => {
           <MessageCircle className="w-8 h-8 text-indigo-600" />
           <span>Anonymous Support Chat</span>
         </h1>
-        <p className="text-gray-600">Connect with peers in a safe, anonymous environment</p>
+        <p className=" text-lg text-gray-600">Connect with peers in a safe, anonymous environment</p>
       </div>
 
       <div className="grid lg:grid-cols-4 gap-6">

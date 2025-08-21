@@ -345,7 +345,7 @@ const YogaPage = ({ user }) => {
           <Activity className="w-8 h-8 text-purple-600" />
           <span>Yoga: A Journey to Mind, Body & Soul</span>
         </h1>
-        <p className="text-gray-600">Find inner peace and physical wellness through guided yoga practice</p>
+        <p className="text-gray-600  text-lg">Find inner peace and physical wellness through guided yoga practice</p>
       </div>
 
       {/* Benefits Banner */}
