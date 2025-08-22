@@ -196,6 +196,11 @@ import { Users, Plus, Heart, MessageCircle, Share2, MoreHorizontal, Flag, Thumbs
       fetchPosts();
     } catch (err) { console.error('Failed to delete post:', err); }
   };
+  
+  const cancelDelete=()=>{
+    setShowDeleteModal(false);
+    setPostToDelete(null);
+  };
 
   const handleAddComment = async (postId) => {
     if (!commentText.trim()) return;
