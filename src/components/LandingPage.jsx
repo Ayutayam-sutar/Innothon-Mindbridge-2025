@@ -111,7 +111,7 @@ const handleSubmit = async (e) => {
       rating: 5
     },
     {
-      name: 'Sushree Sahoo',
+      name: 'Ashutosh Nayak',
       college: 'Bangalore University',
       text: 'Mentored By Er.Ayutayam Sutar The daily check-ins and resources helped me develop better coping strategies.',
       rating: 5
