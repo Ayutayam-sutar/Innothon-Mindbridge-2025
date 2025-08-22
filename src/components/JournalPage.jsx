@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios'; 
 import { BookOpen, Plus, Calendar, Smile, Meh, Frown, Search, Filter, Edit3, Trash2, Save, X } from 'lucide-react';
 
 // Message Box Component (replaces alert/confirm)
@@ -41,7 +42,7 @@ const MessageBox = ({ message, type, onClose, onConfirm }) => {
 };
 
 
-const JournalPage = () => {
+/*const JournalPage = () => {
   const [entries, setEntries] = useState([
     {
       id: '1',
@@ -67,7 +68,12 @@ const JournalPage = () => {
       date: '2024-01-13',
       tags: ['routine', 'classes']
     }
-  ]);
+  ]);*/ 
+  const JournalPage = () => {
+  // We start with an empty array, ready for real data.
+  const [entries, setEntries] = useState([]); 
+  
+  // The rest of your useState hooks are perfect.
   const [showNewEntryModal, setShowNewEntryModal] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null); // Stores the entry object being edited
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,6 +86,25 @@ const JournalPage = () => {
     mood: 'neutral',
     tags: '' // Stored as a comma-separated string for input
   });
+
+   // CHANGE 3: Add this entire block to fetch real entries
+  const fetchEntries = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return; // Stop if no token is found
+    
+    try {
+      const config = { headers: { 'x-auth-token': token } };
+      const res = await axios.get('http://localhost:5000/api/journal', config);
+      setEntries(res.data); // Put real entries from the database into state
+    } catch (err) {
+      console.error('Failed to fetch journal entries:', err);
+      setMessageBox({ message: 'Could not load your entries.', type: 'error', onClose: () => setMessageBox({ message: '' }) });
+    }
+  };
+
+  useEffect(() => {
+    fetchEntries();
+  }, []); // The empty [] makes this run once when the component loads
 
   const handleOpenNewEntry = () => {
     setEditingEntry(null); // Clear any editing state
@@ -104,47 +129,65 @@ const JournalPage = () => {
     setFormEntry({ title: '', content: '', mood: 'neutral', tags: '' });
   };
 
-  const handleSaveOrUpdateEntry = () => {
-    if (!formEntry.title.trim() || !formEntry.content.trim()) {
-      setMessageBox({ message: 'Title and content cannot be empty.', type: 'error', onClose: () => setMessageBox({ message: '' }) });
-      return;
-    }
-
-    const tagsArray = formEntry.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '');
-    const entryData = {
-      title: formEntry.title,
-      content: formEntry.content,
-      mood: formEntry.mood,
-      date: new Date().toISOString().split('T')[0], // Current date for new/updated entry
-      tags: tagsArray
-    };
-
+ // Find and replace this entire function
+const handleSaveOrUpdateEntry = async () => {
+  if (!formEntry.title.trim() || !formEntry.content.trim()) {
+    setMessageBox({ message: 'Title and content cannot be empty.', type: 'error', onClose: () => setMessageBox({ message: '' }) });
+    return;
+  }
+  
+  const token = localStorage.getItem('token');
+  const config = { headers: { 'x-auth-token': token } };
+  
+  const tagsArray = formEntry.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+  const entryData = {
+    title: formEntry.title,
+    content: formEntry.content,
+    mood: formEntry.mood,
+    tags: tagsArray
+  };
+  
+  try {
     if (editingEntry) {
-      // Update existing entry
-      setEntries(entries.map(entry =>
-        entry.id === editingEntry.id ? { ...entry, ...entryData } : entry
-      ));
+      // If we are editing, send a PUT request to update
+      await axios.put(`http://localhost:5000/api/journal/${editingEntry._id}`, entryData, config);
       setMessageBox({ message: 'Entry updated successfully!', type: 'success', onClose: () => setMessageBox({ message: '' }) });
     } else {
-      // Add new entry
-      const newId = Date.now().toString(); // Simple unique ID for local storage
-      setEntries([{ id: newId, ...entryData }, ...entries]); // Add new entry to the top
+      // If creating a new entry, send a POST request
+      await axios.post('http://localhost:5000/api/journal', entryData, config);
       setMessageBox({ message: 'Entry saved successfully!', type: 'success', onClose: () => setMessageBox({ message: '' }) });
     }
+    
     handleCloseModal();
-  };
+    fetchEntries(); // Refresh the list with the latest data from the database
+  } catch (err) {
+    console.error('Failed to save or update entry:', err);
+    setMessageBox({ message: 'An error occurred. Please try again.', type: 'error', onClose: () => setMessageBox({ message: '' }) });
+  }
+};
 
-  const handleDeleteEntry = (id) => {
-    setMessageBox({
-      message: 'Are you sure you want to delete this entry? This action cannot be undone.',
-      type: 'warning',
-      onConfirm: () => {
-        setEntries(entries.filter(entry => entry.id !== id));
+
+  // Find and replace this entire function
+const handleDeleteEntry = (id) => {
+  setMessageBox({
+    message: 'Are you sure you want to delete this entry? This action cannot be undone.',
+    type: 'warning',
+    onConfirm: async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const config = { headers: { 'x-auth-token': token } };
+        await axios.delete(`http://localhost:5000/api/journal/${id}`, config);
+
         setMessageBox({ message: 'Entry deleted successfully!', type: 'success', onClose: () => setMessageBox({ message: '' }) });
-      },
-      onClose: () => setMessageBox({ message: '' })
-    });
-  };
+        fetchEntries(); // Refresh the list from the database
+      } catch (err) {
+        console.error('Failed to delete entry:', err);
+        setMessageBox({ message: 'Could not delete the entry.', type: 'error', onClose: () => setMessageBox({ message: '' }) });
+      }
+    },
+    onClose: () => setMessageBox({ message: '' })
+  });
+};
 
   const getMoodIcon = (mood) => {
     switch (mood) {
@@ -178,6 +221,7 @@ const JournalPage = () => {
                          (entry.tags && entry.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
     const matchesMood = filterMood === 'all' || entry.mood === filterMood;
     return matchesSearch && matchesMood;
+
   });
 
   return (
@@ -333,7 +377,7 @@ const JournalPage = () => {
             </div>
           ) : (
             filteredEntries.map((entry) => (
-              <div key={entry.id} className="bg-white rounded-xl p-6 shadow-sm border border-indigo-100 hover:shadow-md transition-shadow">
+              <div key={entry._id} className="bg-white rounded-xl p-6 shadow-sm border border-indigo-100 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
@@ -399,6 +443,6 @@ const JournalPage = () => {
       />
     </div>
   );
-};
+  };
 
 export default JournalPage;

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Users, Plus, Heart, MessageCircle, Share2, MoreHorizontal, Flag, ThumbsUp, Clock, User, Trash2 } from 'lucide-react';
 
-const CommunityPage = ({ user }) => {
+/*const CommunityPage = ({ user }) => {
   const [posts, setPosts] = useState([
     {
       id: '1',
@@ -51,7 +52,12 @@ const CommunityPage = ({ user }) => {
       isAnonymous: true,
       authorId: 'current_user'
     }
-  ]);
+  ]);*/
+
+  const CommunityPage = ({ user }) => {
+  // BRICK 2A, CHANGE 2: Replace the fake data with an empty array
+  const [posts, setPosts] = useState([]);
+  
 
   const [showNewPost, setShowNewPost] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -62,6 +68,27 @@ const CommunityPage = ({ user }) => {
     category: 'support',
     isAnonymous: true
   });
+
+  // BRICK 2B, CHANGE 1: Add this function to fetch posts from the API
+  const fetchPosts = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return; // Stop if the user isn't logged in
+    
+    try {
+      const config = { headers: { 'x-auth-token': token } };
+      // Ask the backend for the live community feed
+      const res = await axios.get('http://localhost:5000/api/posts', config);
+      // Put the real posts from the database into our component's state
+      setPosts(res.data);
+    } catch (err) {
+      console.error('Failed to fetch posts:', err);
+    }
+  };
+
+  // BRICK 2B, CHANGE 2: Add this useEffect to run fetchPosts once on page load
+  useEffect(() => {
+    fetchPosts();
+  }, []); // The empty [] makes this run only when the component first appears
 
   
   const currentUserId = 'current_user';
@@ -103,27 +130,34 @@ const CommunityPage = ({ user }) => {
     setPostToDelete(null);
   };
 
-  const handleSubmitPost = () => {
-    if (!newPost.content.trim()) return;
+  // REPLACE WITH THIS NEW FUNCTION
+const handleSubmitPost = async () => {
+  if (!newPost.content.trim()) return;
 
-    const post = {
-      id: Date.now().toString(),
-      author: newPost.isAnonymous ? 'Anonymous User' : (user?.name || 'User'),
-      content: newPost.content,
-      timestamp: new Date(),
-      likes: 0,
-      comments: 0,
-      isLiked: false,
-      category: newPost.category,
-      isAnonymous: newPost.isAnonymous,
-      authorId: currentUserId // Track who created the post
-    };
+  const token = localStorage.getItem('token');
+  const config = { headers: { 'x-auth-token': token } };
 
-    setPosts([post, ...posts]);
-    setNewPost({ content: '', category: 'support', isAnonymous: true });
-    setShowNewPost(false);
+  // Prepare the data for the backend
+  const body = {
+    content: newPost.content,
+    category: newPost.category,
+    isAnonymous: newPost.isAnonymous
   };
 
+  try {
+    // 1. Send the new post to the backend API
+    await axios.post('http://localhost:5000/api/posts', body, config);
+
+    // 2. Reset the form
+    setNewPost({ content: '', category: 'support', isAnonymous: true });
+    setShowNewPost(false);
+
+    // 3. Fetch the fresh list of all posts (including your new one)
+    fetchPosts();
+  } catch (err) {
+    console.error('Failed to create post:', err);
+  }
+};
   const formatTimeAgo = (date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -303,7 +337,7 @@ const CommunityPage = ({ user }) => {
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
                     <Clock className="w-3 h-3" />
-                    <span>{formatTimeAgo(post.timestamp)}</span>
+                    <span>{formatTimeAgo(new Date(post.date))}</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryStyle(post.category)}`}>
                       {categories.find(c => c.id === post.category)?.label}
                     </span>
@@ -342,7 +376,7 @@ const CommunityPage = ({ user }) => {
               </div>
             </div>
             
-            <p className="text-gray-700 leading-relaxed mb-4">{post.content}</p>
+            <p className="text-gray-700 leading-relaxed mb-4">{post.text}</p>
             
             <div className="flex items-center justify-between pt-4 border-t border-gray-100">
               <div className="flex items-center space-x-6">

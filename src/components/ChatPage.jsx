@@ -1,45 +1,52 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, Send, Users, Shield, Heart, Clock, User } from 'lucide-react';
+import io from 'socket.io-client';
+
+const socket = io('http://localhost:5000');
 
 const ChatPage = ({ user }) => {
-  const [messages, setMessages] = useState([
-    {
-      id: '1',
-      user: 'Anonymous Student',
-      content: 'Hey everyone, I\'ve been feeling really anxious about my upcoming finals. Anyone else dealing with exam stress?',
-      timestamp: new Date(Date.now() - 300000),
-      isOwn: false
-    },
-    {
-      id: '2',
-      user: 'Supportive Friend',
-      content: 'I totally understand! I found that breaking my study schedule into smaller chunks really helped. Also, don\'t forget to take breaks.',
-      timestamp: new Date(Date.now() - 240000),
-      isOwn: false
-    },
-    {
-      id: '3',
-      user: 'Caring Peer',
-      content: 'Same here! What helped me was practicing some breathing exercises before studying. There are some great apps for that.',
-      timestamp: new Date(Date.now() - 180000),
-      isOwn: false
-    },
-    {
-      id: '4',
-      user: 'You',
-      content: 'Thanks for sharing everyone. It\'s comforting to know I\'m not alone in feeling this way.',
-      timestamp: new Date(Date.now() - 120000),
-      isOwn: true
-    }
-  ]);
-
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [onlineUsers] = useState(12);
+  const [onlineUsers, setOnlineUsers] = useState(0);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // --- REVISED useEffect TO HANDLE HISTORY ---
+  useEffect(() => {
+    // This runs when the component first loads
+    // It listens for the chat history sent by the server
+    socket.on('load history', (history) => {
+      // We need to determine if each message in history is "our own"
+      const formattedHistory = history.map(msg => ({
+        ...msg,
+        isOwn: msg.senderId === socket.id,
+        id: msg._id // Use the database ID as the key
+      }));
+      setMessages(formattedHistory);
+    });
+
+    // This listens for new, incoming messages
+    socket.on('chat message', (incomingMessage) => {
+      const isOwn = incomingMessage.senderId === socket.id;
+      // Use the database ID (_id) as the unique key
+      setMessages(prev => [...prev, { ...incomingMessage, isOwn, id: incomingMessage._id }]);
+    });
+
+    // This listens for user count updates
+    socket.on('update user count', (count) => {
+      setOnlineUsers(count);
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off('load history');
+      socket.off('chat message');
+      socket.off('update user count');
+    };
+  }, []); // Empty dependency array ensures this runs only once
 
   useEffect(() => {
     scrollToBottom();
@@ -49,40 +56,18 @@ const ChatPage = ({ user }) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
+    // The message object is now simpler, as the server handles the rest
     const message = {
-      id: Date.now().toString(),
-      user: 'You',
       content: newMessage,
-      timestamp: new Date(),
-      isOwn: true
     };
 
-    setMessages([...messages, message]);
+    socket.emit('chat message', message);
     setNewMessage('');
-
-    // Simulate a response after a delay
-    setTimeout(() => {
-      const responses = [
-        'That\'s a great point! Thanks for sharing.',
-        'I really appreciate your perspective on this.',
-        'You\'re so brave for opening up about that.',
-        'I\'ve been through something similar. You\'re not alone.',
-        'That sounds really challenging. How are you coping?'
-      ];
-      
-      const response = {
-        id: (Date.now() + 1).toString(),
-        user: 'Supportive Friend',
-        content: responses[Math.floor(Math.random() * responses.length)],
-        timestamp: new Date(),
-        isOwn: false
-      };
-      
-      setMessages(prev => [...prev, response]);
-    }, 2000 + Math.random() * 3000);
   };
 
-  const formatTime = (date) => {
+  const formatTime = (isoDate) => {
+    const date = new Date(isoDate);
+    if (isNaN(date)) return '...';
     return date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit',
@@ -90,10 +75,11 @@ const ChatPage = ({ user }) => {
     });
   };
 
+  // --- NO CHANGES TO YOUR JSX RETURN ---
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="mb-6">
+       {/* Header */}
+       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center space-x-3">
           <MessageCircle className="w-8 h-8 text-indigo-600" />
           <span>Anonymous Support Chat</span>
@@ -123,7 +109,7 @@ const ChatPage = ({ user }) => {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((message) => (
                 <div
-                  key={message.id}
+                  key={message.id || message._id} // Use database _id as key
                   className={`flex ${message.isOwn ? 'justify-end' : 'justify-start'}`}
                 >
                   <div className={`max-w-xs lg:max-w-md ${message.isOwn ? 'order-2' : 'order-1'}`}>
@@ -137,7 +123,7 @@ const ChatPage = ({ user }) => {
                         <span className={`text-xs font-medium ${
                           message.isOwn ? 'text-indigo-100' : 'text-gray-600'
                         }`}>
-                          {message.user}
+                          {message.isOwn ? 'You' : message.user}
                         </span>
                       </div>
                       <p className="text-sm leading-relaxed">{message.content}</p>
@@ -226,22 +212,6 @@ const ChatPage = ({ user }) => {
               ))}
             </div>
           </div>
-
-          {/* Crisis Support >Call 9152987821 - Crisis Lifeline
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-red-800 mb-3">Crisis Support</h3>
-            <p className="text-red-700 text-sm mb-4">
-              If you or someone else is in immediate danger, please seek professional help.
-            </p>
-            <div className="space-y-2">
-              <a href='tel:9152987821 '><button className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium">
-                National Crisis Line
-              </button></a>
-             <a href='tel:100'> <button className="w-full bg-white text-red-600 border border-red-300 py-2 px-4 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium">
-                Find Local Help
-              </button></a>
-            </div>
-          </div> */}
         </div>
       </div>
     </div>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { Heart, TrendingUp, MessageCircle, BookOpen, Calendar, Smile, Meh, Frown, AlertCircle, Users, Brain, Activity, Bot, Phone } from 'lucide-react';
 
-const storage = {
+/*const storage = {
   data: {
     moodHistory: [
       { date: '2024-01-15', mood: 'happy', score: 8 },
@@ -32,15 +33,44 @@ const storage = {
   update: function(key, updateFn) {
     this.data[key] = updateFn(this.data[key]);
   }
-};
+};*/
 
-const Dashboard = ({ user }) => {
-  const [moodHistory, setMoodHistory] = useState(() => storage.get('moodHistory'));
-  const [currentMood, setCurrentMood] = useState(() => storage.get('currentMood'));
-  const [dailyTip, setDailyTip] = useState(() => storage.get('dailyTip'));
-  const [streakCount, setStreakCount] = useState(() => storage.get('streakCount'));
-  const [journalEntries, setJournalEntries] = useState(() => storage.get('journalEntries'));
-  const [communityPosts, setCommunityPosts] = useState(() => storage.get('communityPosts'));
+const Dashboard = () => {
+  // REPLACE WITH THIS
+const [moodHistory, setMoodHistory] = useState([]); // Starts as an empty list
+const [currentMood, setCurrentMood] = useState('');
+const [dailyTip, setDailyTip] = useState('');
+const [streakCount, setStreakCount] = useState(0); // Starts at 0
+const [journalEntries, setJournalEntries] = useState(0);
+const [communityPosts, setCommunityPosts] = useState(0);
+const [userData, setUserData] = useState(null); // The state for our user's name
+
+  // --- START OF NEW CODE --- 
+
+  // BRICK 1, CHANGE 1: Add new state to hold the fetched user data
+  /*const [userData, setUserData] = useState(null);
+
+  // BRICK 1, CHANGE 2: Add this entire `useEffect` block to fetch the data
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const config = {
+            headers: { 'x-auth-token': token },
+          };
+          const res = await axios.get('http://localhost:5000/api/auth/user', config);
+          setUserData(res.data); // Store the fetched user in our new state
+        } catch (err) {
+          console.error('Error fetching user data:', err);
+        }
+      }
+    };
+
+    fetchUserData();
+  }, []); // The empty array makes this run once on load*/
+
+  // --- END OF NEW CODE ---
 
   const tips = [
     "Take 5 deep breaths when feeling overwhelmed. It activates your parasympathetic nervous system.",
@@ -52,7 +82,42 @@ const Dashboard = ({ user }) => {
     "Connect with a friend today. Social support is crucial for mental wellbeing."
   ];
 
+  // --- ADD THIS NEW, SINGLE useEffect BLOCK ---
   useEffect(() => {
+    // Part 1: Your original logic for setting the daily tip
+    const today = new Date().toDateString();
+    const lastTipDate = localStorage.getItem('lastTipDate');
+    if (lastTipDate !== today) {
+      const newTip = tips[Math.floor(Math.random() * tips.length)];
+      setDailyTip(newTip);
+      localStorage.setItem('lastTipDate', today);
+      localStorage.setItem('dailyTip', newTip); // Save the tip for refresh
+    } else {
+      setDailyTip(localStorage.getItem('dailyTip') || tips[0]);
+    }
+
+    // Part 2: Logic to fetch REAL data from your backend
+    const token = localStorage.getItem('token');
+    if (token) {
+      const config = { headers: { 'x-auth-token': token } };
+
+      // Fetch the user's name
+      axios.get('http://localhost:5000/api/auth/user', config)
+        .then(res => setUserData(res.data))
+        .catch(err => console.error('Error fetching user:', err));
+
+      // Fetch user's mood history AND streak
+      axios.get('http://localhost:5000/api/moods', config)
+        .then(res => {
+          // The response data is now an object: { moods: [], streakCount: 0 }
+          setMoodHistory(res.data.moods);
+          setStreakCount(res.data.streakCount); // <-- Set the real streak count
+        })
+        .catch(err => console.error('Error fetching moods:', err));
+    }
+ }, []); // The empty [] makes this run only once when the page loads
+
+  /*useEffect(() => {
     const today = new Date().toDateString();
     const lastTipDate = storage.get('lastTipDate');
     
@@ -82,27 +147,32 @@ const Dashboard = ({ user }) => {
 
   useEffect(() => {
     storage.set('communityPosts', communityPosts);
-  }, [communityPosts]);
+  }, [communityPosts]);  */
 
-  const handleMoodSubmit = (mood, score) => {
-    const today = new Date().toISOString().split('T')[0];
-    const newEntry = { date: today, mood, score };
-    
-    // Check if there's already an entry for today
-    const existingEntryIndex = moodHistory.findIndex(entry => entry.date === today);
-    
-    let updatedHistory;
-    if (existingEntryIndex !== -1) {
-      updatedHistory = [...moodHistory];
-      updatedHistory[existingEntryIndex] = newEntry;
-    } else {
-      updatedHistory = [newEntry, ...moodHistory.slice(0, 6)];
-      setStreakCount(prev => prev + 1);
+  // REPLACE THE OLD FUNCTION WITH THIS
+// Find and replace this entire function in Dashboard.jsx
+
+const handleMoodSubmit = async (mood, score) => {
+    const token = localStorage.getItem('token');
+    const config = { headers: { 'x-auth-token': token } };
+    const body = { mood, score };
+
+    try {
+      // 1. Send the new mood to the backend
+      await axios.post('http://localhost:5000/api/moods', body, config);
+      
+      // 2. After saving, fetch the fresh data (moods and new streak)
+      const res = await axios.get('http://localhost:5000/api/moods', config);
+      
+      // 3. Update the dashboard with the latest data from the database
+      setMoodHistory(res.data.moods);
+      setStreakCount(res.data.streakCount);
+      setCurrentMood(mood);
+    } catch (err)      {
+      console.error('Error submitting mood:', err);
+      alert('Could not save your mood. Please try again.');
     }
-    
-    setMoodHistory(updatedHistory);
-    setCurrentMood(mood);
-  };
+};
 
   const getMoodIcon = (mood) => {
     switch (mood) {
@@ -151,7 +221,7 @@ const Dashboard = ({ user }) => {
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {user?.anonymous ? 'friend' : user?.name || 'there'}! 👋
+          Welcome back, {userData ? userData.username : 'friend'}! 👋
         </h1>
         <p className="text-gray-600 text-lg">How are you feeling today? Let's check in with yourself.</p>
       </div>

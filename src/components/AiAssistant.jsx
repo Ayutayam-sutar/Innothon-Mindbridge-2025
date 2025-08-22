@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import axios from 'axios';
 import { Bot, Send, User, Heart, Brain, Lightbulb, MessageCircle, Smile, AlertCircle, Phone, Sparkles, Shield, Clock } from 'lucide-react';
 import ConsultationPage from './ConsultationPage';
 
 const ChatbotPage = ({ user }) => { 
-  const [currentPage, setCurrentPage] = useState(); 
+//  const [currentPage, setCurrentPage] = useState(); 
   const [messages, setMessages] = useState([
     {
       id: '1',
@@ -27,7 +28,7 @@ const ChatbotPage = ({ user }) => {
     scrollToBottom();
   }, [messages]);
 
-  const botResponses = {
+/* const botResponses = {
     anxiety: {
       responses: [
         "I understand that anxiety can feel overwhelming. Let's try a quick breathing exercise: Breathe in for 4 counts, hold for 4, then breathe out for 6. This activates your parasympathetic nervous system and can help calm your mind. 🌸",
@@ -182,7 +183,7 @@ const ChatbotPage = ({ user }) => {
       ],
       suggestions: ['Tell me more about yourself', 'What\'s going well?', 'How can I help today?', 'Share something positive']
     }
-  };
+  };*/
 
   const quickResponses = [
     "I'm feeling anxious about my future",
@@ -194,7 +195,7 @@ const ChatbotPage = ({ user }) => {
    
   ];
 
-  const getResponseCategory = (message) => {
+  /*const getResponseCategory = (message) => {
     const lowerMessage = message.toLowerCase();
     
     // Greeting patterns
@@ -299,8 +300,9 @@ const ChatbotPage = ({ user }) => {
     
     return 'general';
   };
+*/
 
-  const generateBotResponse = (userMessage) => {
+/*  const generateBotResponse = (userMessage) => {
     const category = getResponseCategory(userMessage);
     const categoryData = botResponses[category];
     const randomResponse = categoryData.responses[Math.floor(Math.random() * categoryData.responses.length)];
@@ -309,42 +311,68 @@ const ChatbotPage = ({ user }) => {
       content: randomResponse,
       suggestions: categoryData.suggestions
     };
+  };*/
+
+
+// BRICK 2, CHANGE 2: Replace your old handleSendMessage function with this
+// Find your entire handleSendMessage function and REPLACE it with this block
+
+const handleSendMessage = async (messageText) => {
+  // Brick 1: Determine the correct text to send.
+  // If messageText was provided (from a suggestion button), use it.
+  // Otherwise, use the text from the input box state (inputMessage).
+  const textToSend = messageText || inputMessage;
+
+  // Now, we can safely check the text. This fixes your error.
+  if (!textToSend.trim()) return;
+
+  const userMessage = {
+    id: Date.now().toString(),
+    type: 'user',
+    content: textToSend, // Use the safe textToSend variable
+    timestamp: new Date()
   };
 
-  const handleSendMessage = (messageText = inputMessage) => {
-    if (!messageText.trim()) return;
+  setMessages(prev => [...prev, userMessage]);
+  setInputMessage('');
+  setIsTyping(true);
 
-    // Add user message
-    const userMessage = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: messageText,
-      timestamp: new Date()
+  try {
+    const token = localStorage.getItem('token');
+    const config = { headers: { 'x-auth-token': token } };
+    // Also use the safe textToSend variable here for the backend
+    const body = { message: textToSend };
+
+    const res = await axios.post('http://localhost:5000/api/ai/chat', body, config);
+
+    const botMessage = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: res.data.response,
+      timestamp: new Date(),
+      suggestions: [] 
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsTyping(true);
+    setMessages(prev => [...prev, botMessage]);
 
-    // Simulate bot typing and response
-    setTimeout(() => {
-      const botResponse = generateBotResponse(messageText);
-      const botMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'bot',
-        content: botResponse.content,
-        timestamp: new Date(),
-        suggestions: botResponse.suggestions
-      };
+  } catch (err) {
+    console.error('Error communicating with AI:', err);
+    const errorMessage = {
+      id: (Date.now() + 1).toString(),
+      type: 'bot',
+      content: "I'm sorry, I'm having a little trouble connecting right now. Please try again in a moment.",
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, errorMessage]);
+  } finally {
+    setIsTyping(false);
+  }
+};
 
-      setMessages(prev => [...prev, botMessage]);
-      setIsTyping(false);
-    }, 1500 + Math.random() * 1000);
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    handleSendMessage(suggestion);
-  };
+// --- BRICK 1: ADD THIS NEW FUNCTION HERE ---
+const handleSuggestionClick = (suggestion) => {
+  handleSendMessage(suggestion);
+};
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-US', { 
@@ -353,12 +381,15 @@ const ChatbotPage = ({ user }) => {
       hour12: true 
     });
   };
-  if (currentPage === 'consultation') {
+
+  // Removing this if else block
+  
+/*  if (currentPage === 'consultation') {
     return <ConsultationPage />; 
   }else if(currentPage === 'chatbot')
     {
     return <AiAssistant/>;
-  }
+  }*/
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-teal-50">
@@ -496,7 +527,7 @@ const ChatbotPage = ({ user }) => {
                       placeholder="Share what's on your mind..."
                       className="w-full px-6 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white shadow-sm text-gray-900 placeholder-gray-500"
                       disabled={isTyping}
-                      onKeyPress={(e) => {
+                     onKeyDown={(e) => { 
                         if (e.key === 'Enter') {
                           e.preventDefault();
                           handleSendMessage();
@@ -505,7 +536,7 @@ const ChatbotPage = ({ user }) => {
                     />
                   </div>
                   <button
-                    onClick={handleSendMessage}
+                    onClick={() => handleSendMessage()} 
                     disabled={!inputMessage.trim() || isTyping}
                     className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-medium"
                   >
