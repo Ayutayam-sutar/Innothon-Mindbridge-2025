@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useStripe } from '@stripe/react-stripe-js'; // <-- 1. ADD THIS LINE
+import axios from 'axios'; // <-- 2. ADD THIS LINE
 import { Calendar, Clock, Video, Phone, MessageCircle, Star, Filter, Search, MapPin, Award, Users, Shield, CreditCard, CheckCircle } from 'lucide-react';
 
 const ConsultationPage = ({ user }) => {
+   const stripe = useStripe(); // <-- 3. ADD THIS LINE
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,7 +26,7 @@ const ConsultationPage = ({ user }) => {
       reviews: 1090,
       languages: ['English', 'Hindi','Odia','Marathi'],
       consultationFee: 1200,
-      image: '/src/components/DR ashutosh.jpg',
+      image: 'https://cdn.openart.ai/video_thumbnail/iCU9kmxBWhDjnVYkwhDe/thumbnail_f3f4bed8_1754934919679.webp',
       availability: ['video', 'audio'],
       nextAvailable: '12-10-2024',
       bio: 'Specializes in anxiety, depression, and stress management for college students.'
@@ -60,7 +63,7 @@ const ConsultationPage = ({ user }) => {
     },
     {
       id: '4',
-      name: 'Dr.Nirilipta Das',
+      name: 'Dr.Ayutayam Sutar',
       specialty: 'Therapist',
       education: 'PhD Clinical Psychology, Aiims,Bhubaneswar',
       experience: '3 years',
@@ -75,7 +78,7 @@ const ConsultationPage = ({ user }) => {
     },
     {
       id: '5',
-      name: 'Dr.Kaloo Parida',
+      name: 'Dr.Pratyush Tripathy',
       specialty: 'Therapist',
       education: 'PhD Clinical Psychology, Aiims,Delhi',
       experience: '10 years',
@@ -195,7 +198,7 @@ const ConsultationPage = ({ user }) => {
     }
   ];
 
-  const [appointments, setAppointments] = useState(() => {
+/*  const [appointments, setAppointments] = useState(() => {
     const savedAppointments = localStorage.getItem('appointments');
     return savedAppointments ? JSON.parse(savedAppointments) : [
       {
@@ -217,15 +220,17 @@ const ConsultationPage = ({ user }) => {
         fee: 1200
       }
     ];
-  });
+  }); */
+
+  const [appointments, setAppointments] = useState([]);
   
 
-  useEffect(() => {
+/*  useEffect(() => {
     localStorage.setItem('appointments', JSON.stringify(appointments));
-  }, [appointments]);
+  }, [appointments]); */
 
   
-  useEffect(() => {
+/*  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentResult = urlParams.get('payment');
     const sessionId = urlParams.get('session_id');
@@ -289,9 +294,27 @@ const ConsultationPage = ({ user }) => {
         appointmentsSection.scrollIntoView({ behavior: 'smooth' });
       }
     }, 100);
-  };
+  }; */
 
-  const handlePayment = () => {
+  // ADD THIS NEW FUNCTION AND USEEFFECT
+
+const fetchAppointments = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+  try {
+    const config = { headers: { 'x-auth-token': token } };
+    const res = await axios.get('http://localhost:5000/api/consultations', config);
+    setAppointments(res.data);
+  } catch (err) {
+    console.error('Failed to fetch appointments:', err);
+  }
+};
+
+useEffect(() => {
+  fetchAppointments();
+}, []);
+
+/*  const handlePayment = () => {
     if (!selectedDoctor || !selectedDate || !selectedTime) return;
 
     const pendingBooking = {
@@ -306,7 +329,47 @@ const ConsultationPage = ({ user }) => {
     localStorage.setItem('pendingBooking', JSON.stringify(pendingBooking));
     
     window.location.href = 'https://book.stripe.com/test_14A7sN705c8Z3xk9S6cjS02';
+  }; */
+
+  // ADD THIS NEW, POWERFUL FUNCTION
+const handleProceedToPayment = async () => {
+  if (!selectedDoctor || !selectedDate || !selectedTime || !stripe) {
+    alert('Please select a doctor, date, and time. Stripe is also loading.');
+    return;
+  }
+
+  const token = localStorage.getItem('token');
+  const config = { headers: { 'x-auth-token': token } };
+  const requestedDate = new Date(`${selectedDate}T${selectedTime.split(':')[0].padStart(2, '0')}:${selectedTime.split(':')[1].split(' ')[0]}`);
+
+  // This is the data for our own database
+  const bookingBody = {
+    doctorName: selectedDoctor.name,
+    doctorSpecialty: selectedDoctor.specialty,
+    requestedDate,
   };
+
+  try {
+    // First, save a "Pending" request to our database
+    await axios.post('http://localhost:5000/api/consultations', bookingBody, config);
+    fetchAppointments(); // Refresh the list to show the new "Pending" status
+
+    // Next, create the Stripe Checkout Session
+    const stripeBody = {
+      doctorName: selectedDoctor.name,
+      consultationFee: selectedDoctor.consultationFee,
+    };
+    const res = await axios.post('http://localhost:5000/api/stripe/create-checkout-session', stripeBody, config);
+    const { id: sessionId } = res.data;
+
+    // Finally, redirect to Stripe's payment page
+    await stripe.redirectToCheckout({ sessionId });
+
+  } catch (err) {
+    console.error('Failed to initiate payment:', err);
+    alert('Could not start the payment process. Please try again.');
+  }
+};
 
   const specialties = [
     { id: 'all', label: 'All Specialties' },
@@ -399,7 +462,7 @@ const ConsultationPage = ({ user }) => {
         ) : (
           <div className="space-y-4">
             {appointments.map((appointment) => (
-              <div key={appointment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-500">
+              <div key={appointment._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-indigo-500">
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
                     {getConsultationIcon(appointment.type)}
@@ -407,7 +470,7 @@ const ConsultationPage = ({ user }) => {
                   <div>
                     <p className="font-medium text-gray-900">{appointment.doctorName}</p>
                     <p className="text-sm text-gray-600">
-                      {new Date(appointment.date).toLocaleDateString()} at {appointment.time}
+                     {new Date(appointment.requestedDate).toLocaleString()}
                     </p>
                     {appointment.paymentId && (
                       <p className="text-xs text-green-600">Payment ID: {appointment.paymentId}</p>
@@ -625,7 +688,7 @@ const ConsultationPage = ({ user }) => {
               </div>
               
               <button
-                onClick={handlePayment}
+                onClick={handleProceedToPayment}
                 disabled={!selectedDate || !selectedTime}
                 className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >

@@ -72,6 +72,62 @@ const [userData, setUserData] = useState(null); // The state for our user's name
 
   // --- END OF NEW CODE ---
 
+  // --- START OF NEW UPGRADED LOGIC ---
+
+    // We put all our fetching logic into one reusable function
+    const fetchAllDashboardData = () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            const config = { headers: { 'x-auth-token': token } };
+
+            axios.get('http://localhost:5000/api/auth/user', config)
+                .then(res => {
+                    setUserData(res.data);
+                    setJournalEntries(res.data.journalCount);
+                    setCommunityPosts(res.data.postCount);
+                })
+                .catch(err => console.error('Error fetching user stats:', err));
+
+            axios.get('http://localhost:5000/api/moods', config)
+                .then(res => {
+                    setMoodHistory(res.data.moods);
+                    setStreakCount(res.data.streakCount);
+                })
+                .catch(err => console.error('Error fetching moods:', err));
+        }
+    };
+
+    // This useEffect runs only ONCE when the page first loads
+    useEffect(() => {
+        fetchAllDashboardData(); // Fetch all data on initial load
+        
+        // This part handles the daily tip
+        const today = new Date().toDateString();
+        const lastTipDate = localStorage.getItem('lastTipDate');
+        if (lastTipDate !== today) {
+            const newTip = tips[Math.floor(Math.random() * tips.length)];
+            setDailyTip(newTip);
+            localStorage.setItem('lastTipDate', today);
+            localStorage.setItem('dailyTip', newTip);
+        } else {
+            setDailyTip(localStorage.getItem('dailyTip') || tips[0]);
+        }
+    }, []);
+
+    // This new useEffect automatically re-fetches data when you return to the page
+    useEffect(() => {
+        // 'focus' event is triggered when you switch back to this browser tab
+        window.addEventListener('focus', fetchAllDashboardData);
+
+        // This is a cleanup function to prevent memory leaks
+        return () => {
+            window.removeEventListener('focus', fetchAllDashboardData);
+        };
+    }, []);
+
+    // --- END OF NEW UPGRADED LOGIC ---
+
+
   const tips = [
     "Take 5 deep breaths when feeling overwhelmed. It activates your parasympathetic nervous system.",
     "Try the 5-4-3-2-1 grounding technique: 5 things you see, 4 you touch, 3 you hear, 2 you smell, 1 you taste.",
@@ -112,10 +168,56 @@ const [userData, setUserData] = useState(null); // The state for our user's name
           // The response data is now an object: { moods: [], streakCount: 0 }
           setMoodHistory(res.data.moods);
           setStreakCount(res.data.streakCount); // <-- Set the real streak count
+          console.log('Data received for dashboard stats:', res.data);
+
+    setUserData(res.data);
+    setJournalEntries(res.data.journalCount);
+    setCommunityPosts(res.data.postCount);
+
         })
         .catch(err => console.error('Error fetching moods:', err));
     }
- }, []); // The empty [] makes this run only once when the page loads
+ }, []); // The empty [] makes this run only once when the page loads// In Dashboard.jsx
+// REPLACE your entire useEffect block with this one
+
+useEffect(() => {
+    // This part handles the daily tip
+    const today = new Date().toDateString();
+    const lastTipDate = localStorage.getItem('lastTipDate');
+    if (lastTipDate !== today) {
+        const newTip = tips[Math.floor(Math.random() * tips.length)];
+        setDailyTip(newTip);
+        localStorage.setItem('lastTipDate', today);
+        localStorage.setItem('dailyTip', newTip);
+    } else {
+        setDailyTip(localStorage.getItem('dailyTip') || tips[0]);
+    }
+
+    // This part fetches REAL data from your backend
+    const token = localStorage.getItem('token');
+    if (token) {
+        const config = { headers: { 'x-auth-token': token } };
+
+        // --- Fetch 1: Get User Data and STATS ---
+        axios.get('http://localhost:5000/api/auth/user', config)
+            .then(res => {
+                // This block ONLY handles the response from the USER route
+                setUserData(res.data);
+                setJournalEntries(res.data.journalCount);
+                setCommunityPosts(res.data.postCount);
+            })
+            .catch(err => console.error('Error fetching user stats:', err));
+
+        // --- Fetch 2: Get Mood Data ---
+        axios.get('http://localhost:5000/api/moods', config)
+            .then(res => {
+                // This block ONLY handles the response from the MOODS route
+                setMoodHistory(res.data.moods);
+                setStreakCount(res.data.streakCount);
+            })
+            .catch(err => console.error('Error fetching moods:', err));
+    }
+}, []); // The empty [] makes this run only once when the page loads
 
   /*useEffect(() => {
     const today = new Date().toDateString();

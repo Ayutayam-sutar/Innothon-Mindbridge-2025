@@ -13,6 +13,8 @@ import ConsultationPage from './components/ConsultationPage.jsx';
 import ChatbotPage from './components/AiAssistant.jsx';
 import ChatPage from './components/ChatPage.jsx';
 import CommunityPage from './components/CommunityPage.jsx';
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 
 // --- BRICK 1: CORRECTED PROTECTED ROUTE LOGIC ---
 function ProtectedRoute() {
@@ -76,8 +78,13 @@ const router = createBrowserRouter([
   }
 ]);
 
+// Load Stripe with your publishable key (it's safe to be here)
+const stripePromise = loadStripe('pk_test_51Rynl1LOYsWjVEkVpDhZBvnvav5FSxkMOrUmrhNT4NTu2rGylnRSUjyXkoKojWL1eyXV8MFN7j2vi8nfDvXfAL2i00dQSEvD6J');
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <Elements stripe={stripePromise}>
+      <RouterProvider router={router} />
+    </Elements>
   </StrictMode>
 );
