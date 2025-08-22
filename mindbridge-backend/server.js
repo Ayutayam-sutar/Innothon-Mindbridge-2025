@@ -7,10 +7,11 @@ const auth = require('./middleware/auth');
 const Mood = require('./models/Mood');
 const Journal = require('./models/Journal');
 const Post = require('./models/Post');
+const Consultation = require('./models/Consultation'); 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const Message = require('./models/Message');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const User = require('./models/user');
-
+const Message = require('./models/Message');
 const http = require('http');
 const { Server } = require("socket.io");
 require('dotenv').config();
@@ -99,17 +100,28 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// ... after your login endpoint
-
 // @route   GET api/auth/user
-// @desc    Get logged-in user's data
-// @access  Private (because we use the 'auth' middleware)
+// @desc    Get logged-in user's data AND their stats
 app.get('/api/auth/user', auth, async (req, res) => {
   try {
-    // The 'auth' middleware added the user's id to req.user
-    // We find the user but exclude sending their password back
     const user = await User.findById(req.user.id).select('-password');
-    res.json(user);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    
+    // --- START OF MODIFICATION ---
+    
+    // 1. Count the number of journal documents belonging to this user
+    const journalCount = await Journal.countDocuments({ user: req.user.id });
+    
+    // 2. Count the number of post documents belonging to this user
+    const postCount = await Post.countDocuments({ user: req.user.id });
+
+    // 3. Send back a single object containing the user's data AND the new counts
+    res.json({ ...user.toObject(), journalCount, postCount });
+    
+    // --- END OF MODIFICATION ---
+
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -426,8 +438,72 @@ app.put('/api/posts/like/:id', auth, async (req, res) => {
 
 // END OF NEW POST ROUTES
 
+// In server.js
+
+// ... after your app.put('/api/posts/like/:id', ...) route
+
+// --- START OF NEW COMMENT ROUTES ---
+
+// @route   POST api/posts/comment/:id
+// @desc    Comment on a post
+// @access  Private
+app.post('/api/posts/comment/:id', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    const post = await Post.findById(req.params.id);
+
+    const newComment = {
+      text: req.body.text,
+      name: user.username,
+      user: req.user.id,
+    };
+
+    post.comments.unshift(newComment);
+    await post.save();
+    res.json(post.comments);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   DELETE api/posts/comment/:id/:comment_id
+// @desc    Delete a comment
+// @access  Private
+app.delete('/api/posts/comment/:id/:comment_id', auth, async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+
+        // Find the comment to be deleted
+        const comment = post.comments.find(
+            (comment) => comment.id === req.params.comment_id
+        );
+
+        if (!comment) {
+            return res.status(404).json({ msg: 'Comment does not exist' });
+        }
+
+        // Check if the user deleting the comment is the one who made it
+        if (comment.user.toString() !== req.user.id) {
+            return res.status(401).json({ msg: 'User not authorized' });
+        }
+
+        post.comments = post.comments.filter(
+            ({ id }) => id !== req.params.comment_id
+        );
+
+        await post.save();
+        res.json(post.comments);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// --- END OF NEW COMMENT ROUTES ---
 
 // --- START OF NEW AI ROUTE ---
+
 // Initialize the Google AI SDK with your API key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -463,11 +539,10 @@ app.post('/api/ai/chat', auth, async (req, res) => {
 
 // --- END OF NEW AI ROUTE ---
 
-
-
 // ADD THIS ENTIRE BLOCK
 // Create an HTTP server from the Express app
 const server = http.createServer(app);
+
 // Initialize Socket.IO and attach it to the HTTP server
 const io = new Server(server, {
   cors: {
@@ -475,7 +550,6 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
-
 
 // ADD THIS ENTIRE BLOCK FOR CHAT LOGIC
 
@@ -529,7 +603,84 @@ io.on('connection', async (socket) => { // <-- Made this async
   });
 });
 
+// --- START OF NEW STRIPE ROUTE ---
 
+// @route   POST /api/stripe/create-checkout-session
+// @desc    Create a new stripe checkout session
+// @access  Private
+app.post('/api/stripe/create-checkout-session', auth, async (req, res) => {
+  const { doctorName, consultationFee } = req.body;
+
+  try {
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'inr', // Indian Rupees
+            product_data: {
+              name: `Consultation with ${doctorName}`,
+            },
+            unit_amount: consultationFee * 100, // Amount in paise
+          },
+          quantity: 1,
+        },
+      ],
+      // The URLs Stripe will redirect to after payment
+      success_url: `${process.env.CLIENT_URL}/app/consultation?payment=success`,
+      cancel_url: `${process.env.CLIENT_URL}/app/consultation?payment=cancelled`,
+    });
+
+    res.json({ id: session.id });
+  } catch (err) {
+    console.error('Stripe Error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// --- END OF NEW STRIPE ROUTE ---
+
+// --- START OF NEW CONSULTATION ROUTES ---
+
+// @route   POST api/consultations
+// @desc    Request a new consultation
+// @access  Private
+app.post('/api/consultations', auth, async (req, res) => {
+  try {
+    const { doctorName, doctorSpecialty, requestedDate, notes } = req.body;
+
+    const newConsultation = new Consultation({
+      user: req.user.id,
+      doctorName,
+      doctorSpecialty,
+      requestedDate,
+      notes,
+    });
+
+    const consultation = await newConsultation.save();
+    res.json(consultation);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET api/consultations
+// @desc    Get all consultations for the logged-in user
+app.get('/api/consultations', auth, async (req, res) => {
+  try {
+    const consultations = await Consultation.find({ user: req.user.id }).sort({ requestDate: -1 });
+    res.json(consultations);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// --- END OF NEW CONSULTATION ROUTES ---
+
+// ... rest of your server.js
 
 const port = process.env.PORT || 5000;
 

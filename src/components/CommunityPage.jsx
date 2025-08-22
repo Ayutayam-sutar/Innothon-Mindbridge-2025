@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Users, Plus, Heart, MessageCircle, Share2, MoreHorizontal, Flag, ThumbsUp, Clock, User, Trash2 } from 'lucide-react';
 
+
 /*const CommunityPage = ({ user }) => {
   const [posts, setPosts] = useState([
     {
@@ -54,10 +55,13 @@ import { Users, Plus, Heart, MessageCircle, Share2, MoreHorizontal, Flag, Thumbs
     }
   ]);*/
 
-  const CommunityPage = ({ user }) => {
+  const CommunityPage = () => {
   // BRICK 2A, CHANGE 2: Replace the fake data with an empty array
   const [posts, setPosts] = useState([]);
-  
+
+  const [user, setUser] = useState(null); // <-- ADD THIS LINE
+
+  const [commentText, setCommentText] = useState('');
 
   const [showNewPost, setShowNewPost] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -69,8 +73,34 @@ import { Users, Plus, Heart, MessageCircle, Share2, MoreHorizontal, Flag, Thumbs
     isAnonymous: true
   });
 
+  // ADD THIS ENTIRE useEffect BLOCK
+  useEffect(() => {
+    const fetchAllData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const config = { headers: { 'x-auth-token': token } };
+      
+      try {
+        // Fetch both posts and user data at the same time
+        const [postsRes, userRes] = await Promise.all([
+          axios.get('http://localhost:5000/api/posts', config),
+          axios.get('http://localhost:5000/api/auth/user', config)
+        ]);
+        
+        // Put the data into the correct state variables
+        setPosts(postsRes.data);
+        setUser(userRes.data);
+      } catch (err) {
+        console.error('Failed to fetch page data:', err);
+      }
+    };
+    
+    fetchAllData();
+  }, []); // The empty [] makes this run only once
+
   // BRICK 2B, CHANGE 1: Add this function to fetch posts from the API
-  const fetchPosts = async () => {
+/*  const fetchPosts = async () => {
     const token = localStorage.getItem('token');
     if (!token) return; // Stop if the user isn't logged in
     
@@ -83,14 +113,32 @@ import { Users, Plus, Heart, MessageCircle, Share2, MoreHorizontal, Flag, Thumbs
     } catch (err) {
       console.error('Failed to fetch posts:', err);
     }
-  };
+  };*/
 
   // BRICK 2B, CHANGE 2: Add this useEffect to run fetchPosts once on page load
-  useEffect(() => {
-    fetchPosts();
-  }, []); // The empty [] makes this run only when the component first appears
+ useEffect(() => {
+    const fetchAllData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-  
+      const config = { headers: { 'x-auth-token': token } };
+
+      try {
+        // Fetch both posts and user data
+        const [postsRes, userRes] = await Promise.all([
+          axios.get('http://localhost:5000/api/posts', config),
+          axios.get('http://localhost:5000/api/auth/user', config)
+        ]);
+
+        setPosts(postsRes.data);
+        setUser(userRes.data);
+      } catch (err) {
+        console.error('Failed to fetch page data:', err);
+      }
+    };
+
+    fetchAllData();
+  }, []);
   const currentUserId = 'current_user';
 
   const categories = [
@@ -101,63 +149,76 @@ import { Users, Plus, Heart, MessageCircle, Share2, MoreHorizontal, Flag, Thumbs
     { id: 'question', label: 'Question', color: 'bg-yellow-100 text-yellow-800' }
   ];
 
-  const handleLike = (postId) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { 
-            ...post, 
-            isLiked: !post.isLiked,
-            likes: post.isLiked ? post.likes - 1 : post.likes + 1
-          }
-        : post
-    ));
+ // --- START: All Handler Functions ---
+  const fetchPosts = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const config = { headers: { 'x-auth-token': token } };
+      const res = await axios.get('http://localhost:5000/api/posts', config);
+      setPosts(res.data);
+    } catch (err) { console.error('Failed to fetch posts:', err); }
   };
 
-  const handleDeletePost = (postId) => {
-    setPostToDelete(postId);
-    setShowDeleteModal(true);
-    setShowDropdown(null);
+  const handleLike = async (postId) => {
+    const token = localStorage.getItem('token');
+    const config = { headers: { 'x-auth-token': token } };
+    try {
+      await axios.put(`http://localhost:5000/api/posts/like/${postId}`, null, config);
+      fetchPosts();
+    } catch (err) { console.error('Failed to like post:', err); }
   };
 
-  const confirmDelete = () => {
-    setPosts(posts.filter(post => post.id !== postToDelete));
-    setShowDeleteModal(false);
-    setPostToDelete(null);
+  const handleSubmitPost = async () => {
+    if (!newPost.content.trim()) return;
+    const token = localStorage.getItem('token');
+    const config = { headers: { 'x-auth-token': token } };
+    const body = {
+      content: newPost.content,
+      category: newPost.category,
+      isAnonymous: newPost.isAnonymous
+    };
+    try {
+      await axios.post('http://localhost:5000/api/posts', body, config);
+      setNewPost({ content: '', category: 'support', isAnonymous: true });
+      setShowNewPost(false);
+      fetchPosts();
+    } catch (err) { console.error('Failed to create post:', err); }
   };
 
-  const cancelDelete = () => {
-    setShowDeleteModal(false);
-    setPostToDelete(null);
+  const confirmDelete = async () => {
+    const token = localStorage.getItem('token');
+    const config = { headers: { 'x-auth-token': token } };
+    try {
+      await axios.delete(`http://localhost:5000/api/posts/${postToDelete}`, config);
+      setShowDeleteModal(false);
+      setPostToDelete(null);
+      fetchPosts();
+    } catch (err) { console.error('Failed to delete post:', err); }
   };
 
-  // REPLACE WITH THIS NEW FUNCTION
-const handleSubmitPost = async () => {
-  if (!newPost.content.trim()) return;
-
-  const token = localStorage.getItem('token');
-  const config = { headers: { 'x-auth-token': token } };
-
-  // Prepare the data for the backend
-  const body = {
-    content: newPost.content,
-    category: newPost.category,
-    isAnonymous: newPost.isAnonymous
+  const handleAddComment = async (postId) => {
+    if (!commentText.trim()) return;
+    const token = localStorage.getItem('token');
+    const config = { headers: { 'x-auth-token': token } };
+    const body = { text: commentText };
+    try {
+      await axios.post(`http://localhost:5000/api/posts/comment/${postId}`, body, config);
+      setCommentText('');
+      fetchPosts();
+    } catch (err) { console.error('Failed to add comment:', err); }
   };
 
-  try {
-    // 1. Send the new post to the backend API
-    await axios.post('http://localhost:5000/api/posts', body, config);
-
-    // 2. Reset the form
-    setNewPost({ content: '', category: 'support', isAnonymous: true });
-    setShowNewPost(false);
-
-    // 3. Fetch the fresh list of all posts (including your new one)
-    fetchPosts();
-  } catch (err) {
-    console.error('Failed to create post:', err);
-  }
-};
+  const handleDeleteComment = async (postId, commentId) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      const token = localStorage.getItem('token');
+      const config = { headers: { 'x-auth-token': token } };
+      try {
+        await axios.delete(`http://localhost:5000/api/posts/comment/${postId}/${commentId}`, config);
+        fetchPosts();
+      } catch (err) { console.error('Failed to delete comment:', err); }
+    }
+  };
   const formatTimeAgo = (date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -317,10 +378,10 @@ const handleSubmitPost = async () => {
         </div>
       )}
 
-      {/* Posts Feed */}
+       {/* Posts Feed */}
       <div className="space-y-6">
         {posts.map((post) => (
-          <div key={post.id} className="bg-white rounded-xl p-6 shadow-sm border border-indigo-100 hover:shadow-md transition-shadow">
+          <div key={post._id} className="bg-white rounded-xl p-6 shadow-sm border">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-full flex items-center justify-center">
@@ -328,12 +389,8 @@ const handleSubmitPost = async () => {
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <p className="font-medium text-gray-900">{post.author}</p>
-                    {isMyPost(post) && (
-                      <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
-                        You
-                      </span>
-                    )}
+                    <p className="font-medium text-gray-900">{post.name}</p>
+                    {post.isMine && <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">You</span>}
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-gray-500">
                     <Clock className="w-3 h-3" />
@@ -346,30 +403,18 @@ const handleSubmitPost = async () => {
               </div>
               
               <div className="relative">
-                <button 
-                  onClick={() => setShowDropdown(showDropdown === post.id ? null : post.id)}
-                  className="text-gray-400 hover:text-gray-600 p-1"
-                >
+                <button onClick={() => setShowDropdown(showDropdown === post._id ? null : post._id)}>
                   <MoreHorizontal className="w-5 h-5" />
                 </button>
-                
-                {showDropdown === post.id && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-10">
-                    {isMyPost(post) && (
-                      <button
-                        onClick={() => handleDeletePost(post.id)}
-                        className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 flex items-center space-x-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Delete Post</span>
+                {showDropdown === post._id && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10">
+                    {post.isMine && (
+                      <button onClick={() => { setPostToDelete(post._id); setShowDeleteModal(true); setShowDropdown(null); }}>
+                        <Trash2 className="w-4 h-4" /> <span>Delete Post</span>
                       </button>
                     )}
-                    <button
-                      onClick={() => setShowDropdown(null)}
-                      className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50 flex items-center space-x-2"
-                    >
-                      <Flag className="w-4 h-4" />
-                      <span>Report Post</span>
+                    <button onClick={() => setShowDropdown(null)}>
+                      <Flag className="w-4 h-4" /> <span>Report Post</span>
                     </button>
                   </div>
                 )}
@@ -378,36 +423,58 @@ const handleSubmitPost = async () => {
             
             <p className="text-gray-700 leading-relaxed mb-4">{post.text}</p>
             
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between pt-4 border-t">
               <div className="flex items-center space-x-6">
-                <button
-                  onClick={() => handleLike(post.id)}
-                  className={`flex items-center space-x-2 transition-colors ${
-                    post.isLiked 
-                      ? 'text-red-600 hover:text-red-700' 
-                      : 'text-gray-500 hover:text-red-600'
-                  }`}
-                >
+                <button onClick={() => handleLike(post._id)} className={`flex items-center space-x-2 ${post.isLiked ? 'text-red-600' : 'text-gray-500'}`}>
                   <ThumbsUp className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
-                  <span className="text-sm font-medium">{post.likes}</span>
+                  <span className="text-sm font-medium">{post.likes.length}</span>
                 </button>
-                
-                <button className="flex items-center space-x-2 text-gray-500 hover:text-indigo-600 transition-colors">
+                <button className="flex items-center space-x-2 text-gray-500">
                   <MessageCircle className="w-4 h-4" />
-                  <span className="text-sm font-medium">{post.comments}</span>
+                  <span className="text-sm font-medium">{post.comments.length}</span>
                 </button>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                <button className="text-gray-400 hover:text-indigo-600 transition-colors">
-                  <a href='https://x.com/home' target='main'><Share2 className="w-4 h-4"/></a>
+              <button><Share2 className="w-4 h-4"/></button>
+            </div>
+
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex items-center space-x-3 mb-4">
+                <input
+                  type="text"
+                  placeholder="Write a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+                <button onClick={() => handleAddComment(post._id)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold">
+                  Reply
                 </button>
-              
               </div>
+
+              {post.comments.map((comment) => (
+                <div key={comment._id} className="flex items-start space-x-3 mt-3">
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+                    <span>{comment.name.charAt(0)}</span>
+                  </div>
+                  <div className="flex-1 bg-gray-100 p-3 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <p className="font-semibold text-sm">{comment.name}</p>
+                      {comment.user === user?._id && (
+                        <button onClick={() => handleDeleteComment(post._id, comment._id)}>
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-700">{comment.text}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ))}
       </div>
+          
+            
 
       {/* Load More */}
       <div className="text-center mt-8">
